@@ -1000,7 +1000,7 @@ html.short-viewport #title-screen p{margin-bottom:20px;}
 
 <div id="title-screen">
   <h1>少女サクラと不思議のダンジョン</h1>
-  <p>SAKURA'S MYSTERIOUS DUNGEON &nbsp;v0.122.0</p>
+  <p>SAKURA'S MYSTERIOUS DUNGEON &nbsp;v0.123.0</p>
   <button type="button" id="title-bgm-btn" aria-pressed="false">♪ サクラのテーマを再生</button>
   <p id="save-status" class="save-status" role="status" aria-live="polite">セーブデータを確認しています。</p>
   <button type="button" id="start-btn">▶ 村へ進む</button>
@@ -1118,7 +1118,7 @@ html.short-viewport #title-screen p{margin-bottom:20px;}
 --------------------------------------------------------------------- */
 let DEBUG_MODE = false;
 
-const VERSION = "v0.122.0";
+const VERSION = "v0.123.0";
 /* v0.108.0 — Apply the requested strength rebalance to the eight Plant-family
    Koror / Petit archetypes in the canonical 221-species archive. Only the
    strength column changes; HP, defense, evasion, luck, recruitment, floor
@@ -2755,7 +2755,7 @@ function selectTrapIdForFloor(floor=state.floor,randomFn=Math.random){
 function applyTrapPlayerDamage(damage,label){
   const actual=Math.max(0,Math.min(state.status.hp,Math.floor(Number(damage)||0)));
   if(actual<=0)return `${label}。サクラはダメージを受けなかった。`;
-  state.status.hp=Math.max(0,state.status.hp-actual);
+  v123SetHpAfterDamage(state.status,Math.max(0,state.status.hp-actual),Math.max(0,Math.floor(Number(damage)||0)));
   startPlayerHitMotion(0,1);
   let message=`${label}！ サクラは${actual}ダメージを受けた。`;
   if(state.status.hp<=0){const revival=tryTriggerWorldTreeLeaf();if(revival.revived)message+=` ${revival.message}`;else message+=" HPが0になった！";}
@@ -2770,7 +2770,7 @@ function applyTrapDamageToMonster(monster,damage,reason="ワナ"){
     ?triggerTraitExplosion(monster,reason):[];
   const actual=Math.max(0,Math.min(monster.hp,Math.floor(Number(damage)||0)));
   if(actual<=0)return chainMessages.join(" ");
-  monster.hp=Math.max(0,monster.hp-actual);
+  v123SetHpAfterDamage(monster,Math.max(0,monster.hp-actual),Math.max(0,Math.floor(Number(damage)||0)));
   if(monster.hp>0)return `${chainMessages.join(" ")}${chainMessages.length?" ":""}${monster.name}に${actual}ダメージ。`;
   playMonsterDefeatSound(monster);
   state.monsters=state.monsters.filter(actor=>actor!==monster);
@@ -3145,7 +3145,7 @@ function applyScrollItemEffect(itemId){
     if(!targets.length)return {ok:true,message:'イオの巻物を読んだ。しかし、攻撃範囲に魔物はいなかった。'};
     let defeated=0;let drops=[];
     for(const target of targets){
-      target.hp=Math.max(0,target.hp-30);
+      v123SetHpAfterDamage(target,Math.max(0,target.hp-30),30);
       if(target.hp<=0){
         defeated++;playMonsterDefeatSound(target);
         state.monsters=state.monsters.filter(actor=>actor!==target);
@@ -3539,7 +3539,7 @@ function applyHeldWandEffect(caster,itemId,target){
       const raw=Math.max(0,Math.floor(Number(amount)||0));
       const shieldMultiplier=getShieldDamageMultiplier(getEquippedShieldDefinition(),"magic");
       const actual=Math.min(Math.max(0,state.status.hp-(nonLethal?1:0)),getWholePointDamage(raw*shieldMultiplier));
-      state.status.hp=Math.max(nonLethal?1:0,state.status.hp-actual);
+      v123SetHpAfterDamage(state.status,Math.max(nonLethal?1:0,state.status.hp-actual),nonLethal?actual:getWholePointDamage(raw*shieldMultiplier));
       if(state.status.hp<=0){const revival=tryTriggerWorldTreeLeaf();if(revival.revived)renderStatusPanel();}
       renderStatusPanel();return `${actorName}は${actual}ダメージを受けた。`;
     }
@@ -3785,7 +3785,7 @@ function tickMonsterStatusEffectsAtTurnEnd(){
           continue;
         }
         if(effect==="poison" && Number.isFinite(monster.hp) && monster.hp>0){
-          monster.hp=Math.max(0,monster.hp-GRASS_POISON_DAMAGE_PER_TURN);
+          v123SetHpAfterDamage(monster,Math.max(0,monster.hp-GRASS_POISON_DAMAGE_PER_TURN),GRASS_POISON_DAMAGE_PER_TURN);
           if(monster.hp<=0){
             if(state.monsters.includes(monster)){
               playMonsterDefeatSound(monster);
@@ -3900,7 +3900,7 @@ function tickPlayerStatusEffectsAtTurnEnd(){
     if(!Number.isInteger(effect.appliedAt) || effect.appliedAt>=state.turnCount) continue;
     if(effectId==="poison" && state.status.hp>0){
       const before=state.status.hp;
-      state.status.hp=Math.max(0,state.status.hp-GRASS_POISON_DAMAGE_PER_TURN);
+      v123SetHpAfterDamage(state.status,Math.max(0,state.status.hp-GRASS_POISON_DAMAGE_PER_TURN),GRASS_POISON_DAMAGE_PER_TURN);
       messages.push(`毒でHPが${before-state.status.hp}減った。`);
       if(state.status.hp<=0){
         const revival=tryTriggerWorldTreeLeaf();
@@ -3924,7 +3924,7 @@ function findGrassTargetInFacingDirection(){
 }
 function applyGrassDamageToMonster(monster,damage,itemName){
   if(!monster || !Number.isFinite(monster.hp)||monster.hp<=0||!Number.isInteger(damage)||damage<0) return {ok:false,message:"対象がいない。"};
-  const before=monster.hp;const actual=Math.min(monster.hp,damage);monster.hp=Math.max(0,monster.hp-damage);
+  const before=monster.hp;const actual=Math.min(monster.hp,damage);v123SetHpAfterDamage(monster,Math.max(0,monster.hp-damage),damage);
   if(monster.hp>0&&updateMonsterRecruitmentMark(monster,before,monster.hp))return {ok:true,damage:actual,message:`${itemName}で${monster.name}に${actual}ダメージ！ 壺マークが現れた！`};
   if(monster.hp<=0){
     playMonsterDefeatSound(monster);state.monsters=state.monsters.filter(actor=>actor!==monster);
@@ -4536,7 +4536,7 @@ function applyProjectileKnockback(monster,definition){
     const x=monster.x+dx,y=monster.y+dy;
     if(x<0||x>=MAP_W||y<0||y>=MAP_H||!isWalkable(state.tiles[y][x])){
       const amount=Number.isInteger(special.collisionDamage)?special.collisionDamage:0;
-      if(amount>0){const before=monster.hp;monster.hp=Math.max(0,monster.hp-amount);collisionDamage+=before-monster.hp;}
+      if(amount>0){const before=monster.hp;v123SetHpAfterDamage(monster,Math.max(0,monster.hp-amount),amount);collisionDamage+=before-monster.hp;}
       break;
     }
     if(x===state.player.x&&y===state.player.y)break;
@@ -4567,7 +4567,7 @@ function resolveProjectileHit(definition,monster,options={}){
   triggerTraitSplit(monster,"physical");
   const before=monster.hp;
   let critical=false,damage=0,instantKill=false;
-  if(special.instantKillOnHit===true){monster.hp=0;damage=before;instantKill=true;}
+  if(special.instantKillOnHit===true){damage=before;v123SetHpAfterDamage(monster,0,damage);instantKill=true;}
   else{
     const projectilePower=Number.isFinite(definition.attackPower)?Math.max(0,definition.attackPower):0;
     const power=Math.max(0,Math.floor(Number(state.status?.strength)||0))+projectilePower;
@@ -4577,7 +4577,7 @@ function resolveProjectileHit(definition,monster,options={}){
       critical=rollCriticalHit(criticalChance,randomFn)===true;
       const damageResult=calculatePhysicalDamage(power,getMonsterEffectiveDefensePower(monster),critical);
       damage=getWholePointDamage(damageResult?damageResult.damage:0);
-      monster.hp=Math.max(0,monster.hp-damage);
+      v123SetHpAfterDamage(monster,Math.max(0,monster.hp-damage),damage);
     }
   }
   const effects=[];
@@ -5586,7 +5586,7 @@ function applyShieldDamageReaction(attacker,damage,randomFn=Math.random){
     const reflected=Math.floor(damage*special.reflectDamageRate);
     if(reflected>0){
       result.reflectedDamage=reflected;
-      attacker.hp=Math.max(0,attacker.hp-reflected);
+      v123SetHpAfterDamage(attacker,Math.max(0,attacker.hp-reflected),reflected);
       messages.push(`やいばの盾が${reflected}ダメージを跳ね返した。`);
       if(attacker.hp<=0 && state.monsters.includes(attacker)){
         result.attackerDefeated=true;
@@ -5721,7 +5721,7 @@ function applyWeaponStatusProc(weapon,target,randomFn=Math.random){
   }
   if(Number.isFinite(special.instantKillChance) && !(special.bossImmune&&(target.isBoss===true||target.boss===true))){
     const roll=randomFn();
-    if(Number.isFinite(roll)&&roll>=0&&roll<special.instantKillChance){target.hp=0;messages.push(`${target.name}の急所にどくばりが刺さった！`);}
+    if(Number.isFinite(roll)&&roll>=0&&roll<special.instantKillChance){v123SetHpAfterDamage(target,0,target.hp);messages.push(`${target.name}の急所にどくばりが刺さった！`);}
   }
   return messages;
 }
@@ -7711,11 +7711,12 @@ function resolveSakuraAttackAgainstMonster(monster){
     const hpBeforeStrike=monster.hp;
     if(Number.isFinite(special.remainingHpFraction)){
       const before=monster.hp;
-      if(before<=1 && special.killAtOneHp) monster.hp=0;
+      if(before<=1 && special.killAtOneHp) v123SetHpAfterDamage(monster,0,before);
       else{
         const remainingFraction=critical && Number.isFinite(special.criticalRemainingHpFraction)
           ? special.criticalRemainingHpFraction : special.remainingHpFraction;
-        monster.hp=Math.max(0,Math.floor(before*remainingFraction));
+        const nextHp=Math.max(0,Math.floor(before*remainingFraction));
+        v123SetHpAfterDamage(monster,nextHp,before-nextHp);
       }
       damage=before-monster.hp;
     }else{
@@ -7723,7 +7724,7 @@ function resolveSakuraAttackAgainstMonster(monster){
       const damageResult=calculatePhysicalDamage(getPlayerAttackPower(),defensePower,critical);
       const multiplier=getWeaponDamageMultiplier(weapon,monster);
       damage=getWholePointDamage((damageResult ? damageResult.damage : 0)*multiplier);
-      monster.hp=Math.max(0,monster.hp-damage);
+      v123SetHpAfterDamage(monster,Math.max(0,monster.hp-damage),damage);
     }
     totalDamage+=damage;
     if(damage>0&&monster.hp>0&&state.monsters.includes(monster)&&typeof v121AfterMonsterDamage==="function"){
@@ -7860,7 +7861,7 @@ function resolveEnemyMonsterAttackSingle(monster,target=state.player,attackInfo=
      leaving Sakura's actual status unchanged. */
   let shieldReaction={messages:[]};
   if(targetIsPlayer){
-    state.status.hp=Math.max(0,state.status.hp-damage);
+    v123SetHpAfterDamage(state.status,Math.max(0,state.status.hp-damage),damage);
     const conversionRate=getEquippedRingSpecial("damageToExperienceRate");
     if(Number.isFinite(conversionRate)&&conversionRate>0&&damage>0){
       const total=damage*conversionRate+(Number.isFinite(state.equipment.damageExpRemainder)?state.equipment.damageExpRemainder:0);
@@ -7874,7 +7875,7 @@ function resolveEnemyMonsterAttackSingle(monster,target=state.player,attackInfo=
       if(revival.revived) shieldReaction.messages.push(revival.message);
     }
   }else{
-    target.hp=Math.max(0,target.hp-damage);
+    v123SetHpAfterDamage(target,Math.max(0,target.hp-damage),damage);
     if(targetIsOtherEnemy&&target.hp<=0){
       playMonsterDefeatSound(target);
       state.monsters=state.monsters.filter(actor=>actor!==target);
@@ -7983,14 +7984,14 @@ function resolveCompanionMonsterAttackSingle(companion,target=null,options={}){
   let damage=0;
   if(Number.isFinite(special.remainingHpFraction)){
     const before=target.hp;
-    if(before<=1 && special.killAtOneHp) target.hp=0;
-    else target.hp=Math.max(0,Math.floor(before*(critical&&Number.isFinite(special.criticalRemainingHpFraction)
-      ?special.criticalRemainingHpFraction:special.remainingHpFraction)));
+    if(before<=1 && special.killAtOneHp) v123SetHpAfterDamage(target,0,before);
+    else{const nextHp=Math.max(0,Math.floor(before*(critical&&Number.isFinite(special.criticalRemainingHpFraction)
+      ?special.criticalRemainingHpFraction:special.remainingHpFraction)));v123SetHpAfterDamage(target,nextHp,before-nextHp);}
     damage=before-target.hp;
   }else{
     const damageResult=calculatePhysicalDamage(attackPower,defensePower,critical);
     damage=getWholePointDamage((damageResult ? damageResult.damage : 0)*getWeaponDamageMultiplier(weapon,target));
-    target.hp=Math.max(0,target.hp-damage);
+    v123SetHpAfterDamage(target,Math.max(0,target.hp-damage),damage);
   }
   if(target.hp>0&&state.monsters.includes(target)&&updateMonsterRecruitmentMark(target,hpBeforeStrike,target.hp)){
     /* The eligibility marker is visible before the player's next turn. */
@@ -8174,7 +8175,7 @@ function applyMonsterTraitDamage(target,damage,damageType="physical",sourceActor
   if(target===state.player){
     const multiplier=getShieldDamageMultiplier(getEquippedShieldDefinition(),damageType==="fire"?"fire":damageType==="ice"?"ice":damageType);
     const actual=Math.min(state.status.hp,getWholePointDamage(amount*multiplier));
-    state.status.hp=Math.max(0,state.status.hp-actual);
+    v123SetHpAfterDamage(state.status,Math.max(0,state.status.hp-actual),getWholePointDamage(amount*multiplier));
     startPlayerHitMotion(sourceActor?sourceActor.x-target.x:0,sourceActor?sourceActor.y-target.y:1);
     const breadFireCount=damageType==="fire"?transformBreadItemsInInventory("fire"):0;
     const breadFireMessage=breadFireCount?`所持していたパン類${breadFireCount}個が炎で変化した。`:"";
@@ -8190,7 +8191,7 @@ function applyMonsterTraitDamage(target,damage,damageType="physical",sourceActor
   const before=target.hp;
   /* Elemental split was checked before immunity so a fatal / nulled hit can
      still trigger the species reaction. */
-  target.hp=Math.max(0,target.hp-amount);
+  v123SetHpAfterDamage(target,Math.max(0,target.hp-amount),amount);
   let freezeMessage="";
   if(damageType==="ice"&&target.hp>0&&Math.random()<MONSTER_TRAIT_ACTION_DEFAULTS.breathFreezeChance&&
      applyMonsterStatusEffect(target,"freeze",MONSTER_TRAIT_ACTION_DEFAULTS.freezeDurationTurns)){
@@ -17912,7 +17913,7 @@ function runDungeonTests(){
   // TEST-626: all four BGM paths use the same output gain; shop/thief samples
   // are no longer attenuated by the old 0.23 PCM multiplier.
   {
-    const html=VERSION==="v0.122.0"&&V112_BGM_MASTER_GAIN===0.25&&Object.prototype.hasOwnProperty.call(DUNGEON_THEME_MP3_URLS,MISTY_VALLEY_DUNGEON_ID);
+    const html=VERSION==="v0.123.0"&&V112_BGM_MASTER_GAIN===0.25&&Object.prototype.hasOwnProperty.call(DUNGEON_THEME_MP3_URLS,MISTY_VALLEY_DUNGEON_ID);
     const special=v115LegacyBuildSpecialThemeBuffer.toString().includes("*.82")&&
       v115LegacyStartSpecialTheme.toString().includes("gain.gain.value=0.25")&&
       v110BuildSpecialThemeBuffer.toString().includes("v115PrepareSeamlessLoopBuffer");
@@ -25767,7 +25768,7 @@ function damageWandTarget(targetInfo,damage,{nonLethal=false,reason="杖の魔�
   const before=actor.hp;
   let next=Math.max(0,before-Math.max(0,Math.floor(damage)));
   if(nonLethal&&before>0) next=Math.max(1,next);
-  actor.hp=next;
+  v123SetHpAfterDamage(actor,next,nonLethal?before-next:Math.max(0,Math.floor(damage)));
   const dealt=before-next;
   if(targetInfo.kind==="monster"&&next<=0){
     const defeatMessage=defeatMonsterFromWand(actor,reason);
@@ -25854,7 +25855,7 @@ function applyReflectedWandEffectToPlayer(special,wandName,reflector){
   const applyDamage=(amount,nonLethal=false)=>{
     const damage=Math.max(0,Math.floor(Number(amount)||0));
     const actual=Math.min(state.status.hp,damage);
-    state.status.hp=Math.max(nonLethal?1:0,state.status.hp-actual);
+    v123SetHpAfterDamage(state.status,Math.max(nonLethal?1:0,state.status.hp-actual),nonLethal?actual:getWholePointDamage(raw*shieldMultiplier));
     message=`サクラは反射された魔法弾で${actual}ダメージを受けた。`;
     if(state.status.hp<=0){const revival=tryTriggerWorldTreeLeaf();if(revival.revived)message+=` ${revival.message}`;}
   };
@@ -26035,7 +26036,7 @@ function applyWandItemEffect(itemId){
         actor.x=nx;actor.y=ny;moved++;
       }
       let extra="";
-      if(collided){actor.hp=Math.max(0,actor.hp-special.collisionDamage);extra=` 衝突して${special.collisionDamage}ダメージを受けた。`;if(actor.hp<=0)extra+=` ${defeatMonsterFromWand(actor,"ふきとばし")} `;}
+      if(collided){v123SetHpAfterDamage(actor,Math.max(0,actor.hp-special.collisionDamage),special.collisionDamage);extra=` 衝突して${special.collisionDamage}ダメージを受けた。`;if(actor.hp<=0)extra+=` ${defeatMonsterFromWand(actor,"ふきとばし")} `;}
       return {ok:true,message:`${name}を${moved}マス吹き飛ばした。${extra}`.trim()};
     }
     case "split": {
@@ -26575,7 +26576,7 @@ function consumePlayerTurn(actionName="行動",options={}){
     state.hungerTurnProgress = 0;
     state.hpRegenProgress = 0;
     const previousHp = state.status.hp;
-    state.status.hp = Math.max(0, state.status.hp - 1);
+    v123SetHpAfterDamage(state.status,Math.max(0,state.status.hp-1),1);
     starvationDamage = previousHp - state.status.hp;
     state.starvationDamageTaken += 1;
     if(state.status.hp<=0){
@@ -33555,14 +33556,15 @@ function v121ResolveConfusedSakuraAttackAgainstCompanion(target){
     if(critical&&!criticalHit)playCombatOutcomeSound("critical");criticalHit=criticalHit||critical;
     const before=target.hp;let damage=0;
     if(Number.isFinite(special.remainingHpFraction)){
-      if(before<=1&&special.killAtOneHp)target.hp=0;
-      else target.hp=Math.max(0,Math.floor(before*(critical&&Number.isFinite(special.criticalRemainingHpFraction)?special.criticalRemainingHpFraction:special.remainingHpFraction)));
+      if(before<=1&&special.killAtOneHp)v123SetHpAfterDamage(target,0,before);
+      else{const nextHp=Math.max(0,Math.floor(before*(critical&&Number.isFinite(special.criticalRemainingHpFraction)?special.criticalRemainingHpFraction:special.remainingHpFraction)));
+        v123SetHpAfterDamage(target,nextHp,before-nextHp);}
       damage=before-target.hp;
     }else{
       const power=getPlayerAttackPower(),defense=getMonsterEffectiveDefensePower(target);
       const result=calculatePhysicalDamage(power,defense,critical);
       damage=getWholePointDamage((result?result.damage:0)*getWeaponDamageMultiplier(weapon,target));
-      target.hp=Math.max(0,target.hp-damage);
+      v123SetHpAfterDamage(target,Math.max(0,target.hp-damage),damage);
     }
     totalDamage+=damage;
     if(target.hp>0&&weapon){const effects=applyWeaponStatusProc(weapon,target);if(effects.length)messages.push(...effects);}
@@ -33608,12 +33610,12 @@ resolveProjectileHit=function(definition,target,options={}){
     const chance=getPlayerProjectileHitChance(target,definition,options),hit=options.forceHit===true?true:rollAttackHit(chance,randomFn)===true;
     if(!hit)return {hit:false,damage:0,defeated:false,message:`仲間の${target.name}には当たらなかった。`};
     const before=target.hp;let damage=0,critical=false,instantKill=false;
-    if(special.instantKillOnHit===true){target.hp=0;damage=before;instantKill=true;}
+    if(special.instantKillOnHit===true){damage=before;v123SetHpAfterDamage(target,0,damage);instantKill=true;}
     else{
       const power=Math.max(0,Math.floor(Number(state.status?.strength)||0))+(Number.isFinite(definition.attackPower)?Math.max(0,definition.attackPower):0);
       if(power>0){let criticalChance=getPlayerCriticalChance();if(Number.isFinite(special.criticalChanceMultiplier))criticalChance=Math.min(1,criticalChance*special.criticalChanceMultiplier);
         critical=rollCriticalHit(criticalChance,randomFn)===true;const result=calculatePhysicalDamage(power,getMonsterEffectiveDefensePower(target),critical);
-        damage=getWholePointDamage(result?result.damage:0);target.hp=Math.max(0,target.hp-damage);}
+        damage=getWholePointDamage(result?result.damage:0);v123SetHpAfterDamage(target,Math.max(0,target.hp-damage),damage);}
     }
     const messages=[];
     if(target.hp>0&&special.statusOnHit){const effect=special.statusOnHit;const duration=Number.isInteger(effect.minTurns)&&Number.isInteger(effect.maxTurns)?randInt(effect.minTurns,effect.maxTurns):(Number.isInteger(effect.turns)?effect.turns:WAND_DEFAULT_STATUS_DURATION_TURNS);
@@ -34056,6 +34058,294 @@ window.runSakuraV121DetailedChecks=function(){
   return {total:checks.length,passed:checks.filter(v=>v.pass).length,failed:checks.filter(v=>!v.pass),checks};
 };
 
+
+/* =====================================================================
+   v0.123.0 — UNIVERSAL HP DAMAGE / HEAL POPUPS
+   HP mutation is observed centrally on Sakura's status record and every
+   active enemy/companion actor. Damage call sites may provide the final
+   post-mitigation amount so overkill damage remains visible on lethal hits.
+   Popup records snapshot world coordinates and remain independent of actors,
+   so death/removal and later movement do not cancel an already-created popup.
+===================================================================== */
+const V123_HP_POPUP_DURATION_MS=1120;
+const V123_HP_POPUP_MAX_EVENTS=96;
+let v123HpPopupEvents=[];
+let v123HpPopupFrameId=null;
+let v123HpPopupTargetSerial=0;
+const v123HpPopupTargetIds=new WeakMap();
+const v123HpExpectedDamage=new WeakMap();
+const v123HpTrackedOwners=new WeakSet();
+let v123HpPopupSuppressed=0;
+const v123HpPopupCanvas=document.createElement("canvas");
+const v123HpPopupCtx=v123HpPopupCanvas.getContext("2d");
+const v123HpPopupWrap=document.getElementById("canvas-wrap");
+v123HpPopupCanvas.setAttribute("aria-hidden","true");
+v123HpPopupCanvas.style.cssText="position:absolute;z-index:4;pointer-events:none;display:block;left:0;top:0;overflow:hidden;";
+v123HpPopupWrap.appendChild(v123HpPopupCanvas);
+
+function v123HpPopupCanCapture(){
+  return v123HpPopupSuppressed===0&&gameStarted===true&&state.scene==="dungeon"&&!!state.tiles&&
+    Number.isInteger(state.floor)&&Number.isFinite(state.player?.x)&&Number.isFinite(state.player?.y);
+}
+function v123GetHpPopupTargetKey(owner,isPlayer=false){
+  if(isPlayer)return "sakura";
+  if(!owner||typeof owner!=="object")return "unknown";
+  let id=v123HpPopupTargetIds.get(owner);
+  if(!id){id=`hp-target-${++v123HpPopupTargetSerial}`;v123HpPopupTargetIds.set(owner,id);}
+  return id;
+}
+function v123QueueHpPopup(owner,type,amount,isPlayer=false){
+  const numeric=Math.floor(Number(amount));
+  if(!Number.isFinite(numeric)||numeric<=0||!v123HpPopupCanCapture())return false;
+  const x=isPlayer?state.player.x:owner?.x;
+  const y=isPlayer?state.player.y:owner?.y;
+  if(!Number.isFinite(x)||!Number.isFinite(y))return false;
+  const now=performance.now();
+  v123HpPopupEvents=v123HpPopupEvents.filter(event=>event&&event.floor===state.floor&&now-event.startedAt<V123_HP_POPUP_DURATION_MS);
+  const targetKey=v123GetHpPopupTargetKey(owner,isPlayer);
+  const stackIndex=v123HpPopupEvents.filter(event=>event.targetKey===targetKey).length;
+  v123HpPopupEvents.push({
+    type:type==="heal"?"heal":"damage",amount:numeric,x,y,floor:state.floor,dungeonId:state.dungeonId,
+    targetKey,stackIndex,startedAt:now,durationMs:V123_HP_POPUP_DURATION_MS
+  });
+  if(v123HpPopupEvents.length>V123_HP_POPUP_MAX_EVENTS)
+    v123HpPopupEvents.splice(0,v123HpPopupEvents.length-V123_HP_POPUP_MAX_EVENTS);
+  v123ScheduleHpPopupFrame();
+  return true;
+}
+function v123SetHpAfterDamage(target,nextHp,finalDamage){
+  if(!target||typeof target!=="object")return false;
+  const amount=Math.max(0,Math.floor(Number(finalDamage)||0));
+  const previous=v123HpExpectedDamage.has(target)?v123HpExpectedDamage.get(target):undefined;
+  v123HpExpectedDamage.set(target,amount);
+  try{target.hp=nextHp;}
+  finally{if(previous===undefined)v123HpExpectedDamage.delete(target);else v123HpExpectedDamage.set(target,previous);}
+  return true;
+}
+function v123InstrumentHpOwner(owner,isPlayer=false){
+  if(!owner||typeof owner!=="object"||v123HpTrackedOwners.has(owner))return owner;
+  const descriptor=Object.getOwnPropertyDescriptor(owner,"hp");
+  if(descriptor&&descriptor.configurable===false)return owner;
+  if(descriptor&&(typeof descriptor.get==="function"||typeof descriptor.set==="function"))return owner;
+  let current=owner.hp;
+  Object.defineProperty(owner,"hp",{
+    configurable:true,enumerable:descriptor?descriptor.enumerable:true,
+    get(){return current;},
+    set(next){
+      const before=Number(current),after=Number(next);
+      current=next;
+      if(!Number.isFinite(before)||!Number.isFinite(after)||before===after)return;
+      if(after<before){
+        const expected=v123HpExpectedDamage.get(owner);
+        v123QueueHpPopup(owner,"damage",Number.isFinite(expected)?expected:before-after,isPlayer);
+      }else{
+        v123QueueHpPopup(owner,"heal",after-before,isPlayer);
+      }
+    }
+  });
+  v123HpTrackedOwners.add(owner);
+  return owner;
+}
+function v123PrepareActorArray(array){
+  if(!Array.isArray(array))return [];
+  for(const actor of array)if(actor&&typeof actor==="object")v123InstrumentHpOwner(actor,false);
+  if(array.__v123HpPopupArrayWrapped===true)return array;
+  try{
+    Object.defineProperty(array,"__v123HpPopupArrayWrapped",{value:true,enumerable:false,configurable:false});
+    const wrapInsert=(method,indexOfFirst)=>{
+      const original=Array.prototype[method];
+      Object.defineProperty(array,method,{configurable:true,writable:true,enumerable:false,value:function(...args){
+        const result=Reflect.apply(original,this,args);
+        const inserted=method==="splice"?args.slice(2):(method==="fill"?[args[0]]:args);
+        for(const actor of inserted)if(actor&&typeof actor==="object")v123InstrumentHpOwner(actor,false);
+        return result;
+      }});
+    };
+    wrapInsert("push",0);wrapInsert("unshift",0);wrapInsert("splice",2);wrapInsert("fill",0);
+  }catch(error){}
+  return array;
+}
+function v123InstallStateHpInstrumentation(){
+  let statusRef=state.status;
+  v123InstrumentHpOwner(statusRef,true);
+  const statusDescriptor=Object.getOwnPropertyDescriptor(state,"status");
+  if(!statusDescriptor||typeof statusDescriptor.get!=="function"){
+    Object.defineProperty(state,"status",{
+      configurable:true,enumerable:statusDescriptor?statusDescriptor.enumerable:true,
+      get(){return statusRef;},
+      set(value){statusRef=value&&typeof value==="object"?value:{};v123InstrumentHpOwner(statusRef,true);}
+    });
+  }
+  for(const property of ["monsters","companions"]){
+    let records=v123PrepareActorArray(state[property]);
+    const descriptor=Object.getOwnPropertyDescriptor(state,property);
+    if(descriptor&&typeof descriptor.get==="function")continue;
+    Object.defineProperty(state,property,{
+      configurable:true,enumerable:descriptor?descriptor.enumerable:true,
+      get(){return records;},
+      set(value){records=v123PrepareActorArray(value);}
+    });
+  }
+  v123PrepareActorArray(state.monsters);
+  v123PrepareActorArray(state.companions);
+}
+function v123SyncHpPopupCanvas(){
+  if(!canvas||!v123HpPopupCanvas||!v123HpPopupWrap)return false;
+  const canvasRect=canvas.getBoundingClientRect(),wrapRect=v123HpPopupWrap.getBoundingClientRect();
+  if(!(canvasRect.width>0&&canvasRect.height>0))return false;
+  v123HpPopupCanvas.style.left=`${canvasRect.left-wrapRect.left}px`;
+  v123HpPopupCanvas.style.top=`${canvasRect.top-wrapRect.top}px`;
+  v123HpPopupCanvas.style.width=`${canvasRect.width}px`;
+  v123HpPopupCanvas.style.height=`${canvasRect.height}px`;
+  if(v123HpPopupCanvas.width!==canvas.width)v123HpPopupCanvas.width=canvas.width;
+  if(v123HpPopupCanvas.height!==canvas.height)v123HpPopupCanvas.height=canvas.height;
+  const scaleX=canvas.width/Math.max(1,canvasLogicalSize),scaleY=canvas.height/Math.max(1,canvasLogicalSize);
+  v123HpPopupCtx.setTransform(scaleX,0,0,scaleY,0,0);
+  v123HpPopupCtx.imageSmoothingEnabled=false;
+  return true;
+}
+function v123DrawHpPopups(now=performance.now()){
+  if(!v123SyncHpPopupCanvas())return;
+  v123HpPopupCtx.clearRect(0,0,canvasLogicalSize,canvasLogicalSize);
+  if(state.scene!=="dungeon"||!state.tiles){v123HpPopupEvents=[];return;}
+  v123HpPopupEvents=v123HpPopupEvents.filter(event=>event&&event.floor===state.floor&&event.dungeonId===state.dungeonId&&
+    now-event.startedAt<event.durationMs);
+  const camX=state.player.x-VIEW_RADIUS,camY=state.player.y-VIEW_RADIUS;
+  const context=v123HpPopupCtx;
+  for(const event of v123HpPopupEvents){
+    const age=Math.max(0,now-event.startedAt),progress=Math.max(0,Math.min(1,age/event.durationMs));
+    if(event.x<camX||event.x>=camX+VIEW_SIZE||event.y<camY||event.y>=camY+VIEW_SIZE)continue;
+    const sx=event.x-camX,sy=event.y-camY;
+    const cx=(sx+0.5)*tileSize,cy=(sy+0.5)*tileSize;
+    const floatDistance=reducedMotionQuery?.matches?0:tileSize*0.58*progress;
+    const alpha=progress<0.62?1:Math.max(0,(1-progress)/0.38);
+    const lane=event.stackIndex||0;
+    const xOffset=(lane%2===0?1:-1)*Math.ceil(lane/2)*tileSize*0.12;
+    const yOffset=Math.floor(lane/4)*tileSize*0.18;
+    const fontSize=Math.max(11,Math.min(22,tileSize*0.39));
+    const text=event.type==="heal"?`＋${event.amount}`:String(event.amount);
+    context.save();context.globalAlpha=alpha;context.textAlign="center";context.textBaseline="middle";
+    context.font=`900 ${fontSize}px "Yu Gothic", "Hiragino Sans", sans-serif`;
+    context.lineJoin="round";context.lineCap="round";
+    context.shadowColor="rgba(0,0,0,0.95)";context.shadowBlur=Math.max(2,tileSize*0.07);context.shadowOffsetX=0;context.shadowOffsetY=2;
+    context.lineWidth=Math.max(2.5,tileSize*0.055);context.strokeStyle="#080605";
+    context.strokeText(text,cx+xOffset,cy-tileSize*0.52-floatDistance-yOffset);
+    context.fillStyle=event.type==="heal"?"#43D17A":"#FF5555";
+    if(window.__v123HpPopupDrawProbeEnabled===true){
+      const probe=window.__v123HpPopupDrawProbe||(window.__v123HpPopupDrawProbe=[]);
+      probe.push({text,color:context.fillStyle});
+    }
+    context.fillText(text,cx+xOffset,cy-tileSize*0.52-floatDistance-yOffset);
+    context.restore();
+  }
+}
+function v123StopHpPopupFrame(){
+  if(v123HpPopupFrameId!==null){cancelAnimationFrame(v123HpPopupFrameId);v123HpPopupFrameId=null;}
+}
+function v123ScheduleHpPopupFrame(){
+  if(v123HpPopupFrameId!==null||document.hidden)return;
+  const frame=now=>{
+    v123HpPopupFrameId=null;
+    v123DrawHpPopups(now);
+    if(v123HpPopupEvents.some(event=>event&&now-event.startedAt<event.durationMs)&&!document.hidden)
+      v123HpPopupFrameId=requestAnimationFrame(frame);
+  };
+  v123HpPopupFrameId=requestAnimationFrame(frame);
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden)v123StopHpPopupFrame();
+  else if(v123HpPopupEvents.length)v123ScheduleHpPopupFrame();
+});
+const v123LegacyCreateMonsterInstance=createMonsterInstance;
+createMonsterInstance=function(...args){
+  const actor=v123LegacyCreateMonsterInstance(...args);
+  if(actor&&typeof queueMicrotask==="function")queueMicrotask(()=>{
+    if(state.monsters?.includes(actor)||state.companions?.includes(actor))v123InstrumentHpOwner(actor,false);
+  });
+  return actor;
+};
+v123InstallStateHpInstrumentation();
+const v123LegacyRender=render;
+render=function(){
+  v123InstallStateHpInstrumentation();
+  v123LegacyRender();
+  if(v123HpPopupEvents.length)v123DrawHpPopups();
+};
+window.runSakuraV123HpPopupUnitChecks=function(){
+  const saved={scene:state.scene,floor:state.floor,dungeonId:state.dungeonId,tiles:state.tiles,player:state.player,
+    status:state.status,monsters:state.monsters,companions:state.companions,gameStarted,events:v123HpPopupEvents.slice()};
+  const checks=[];
+  const record=(name,pass,detail="")=>checks.push({name,pass:!!pass,detail:String(detail)});
+  try{
+    state.scene="dungeon";state.floor=900;state.dungeonId="hp-popup-test";state.tiles=Array.from({length:8},()=>new Array(8).fill(TILE.ROOM));
+    state.player={x:3,y:3,dir:"down"};gameStarted=true;v123HpPopupEvents=[];
+    state.status={hp:20,maxHp:100};
+    v123SetHpAfterDamage(state.status,0,35);
+    const playerDamage=v123HpPopupEvents[v123HpPopupEvents.length-1];
+    record("player lethal hit shows final damage, including overkill",playerDamage?.type==="damage"&&playerDamage.amount===35&&playerDamage.x===3&&playerDamage.y===3,JSON.stringify(playerDamage));
+    state.status.hp=50;const playerHealStart=v123HpPopupEvents.length;state.status.hp=80;
+    const playerHeal=v123HpPopupEvents[v123HpPopupEvents.length-1];
+    record("player healing shows actual recovered HP with plus sign data",v123HpPopupEvents.length===playerHealStart+1&&playerHeal.type==="heal"&&playerHeal.amount===30);
+    state.status.hp=100;const fullBefore=v123HpPopupEvents.length;state.status.hp=100;
+    record("no HP change produces no popup",v123HpPopupEvents.length===fullBefore);
+
+    const enemy={id:"v123-enemy",x:4,y:3,hp:8,maxHp:40,name:"enemy"};state.monsters=[enemy];
+    v123SetHpAfterDamage(enemy,0,22);
+    const enemyDamage=v123HpPopupEvents[v123HpPopupEvents.length-1];
+    record("enemy lethal damage popup survives removal from active array",enemyDamage?.type==="damage"&&enemyDamage.amount===22&&enemyDamage.x===4&&enemyDamage.y===3,
+      `amount=${enemyDamage?.amount}; active=${state.monsters.includes(enemy)}`);
+    state.monsters=[];
+    record("death popup remains after actor removal",v123HpPopupEvents.includes(enemyDamage));
+    const woundedEnemy={id:"v123-enemy-heal",x:5,y:3,hp:90,maxHp:100,name:"wounded enemy"};state.monsters=[woundedEnemy];
+    woundedEnemy.hp=100;
+    const enemyHeal=v123HpPopupEvents[v123HpPopupEvents.length-1];
+    record("enemy healing is capped to the actual +10 HP",enemyHeal?.type==="heal"&&enemyHeal.amount===10);
+
+    const ally={id:"v123-ally",x:3,y:4,hp:30,maxHp:60,name:"ally"};state.companions=[ally];
+    v123SetHpAfterDamage(ally,12,18);const allyDamage=v123HpPopupEvents[v123HpPopupEvents.length-1];
+    ally.hp=42;const allyHeal=v123HpPopupEvents[v123HpPopupEvents.length-1];
+    record("companion damage and healing both create distinct popup events",allyDamage?.type==="damage"&&allyDamage.amount===18&&allyHeal?.type==="heal"&&allyHeal.amount===30);
+    record("multiple characters keep separate target and position records",
+      new Set(v123HpPopupEvents.map(event=>event.targetKey)).size>=3);
+
+    const sameStart=v123HpPopupEvents.length;ally.hp=40;ally.hp=35;
+    const sameActorEvents=v123HpPopupEvents.slice(sameStart);
+    record("repeated events on one character receive separate stacking offsets",sameActorEvents.length===2&&sameActorEvents[0].stackIndex!==sameActorEvents[1].stackIndex);
+
+    const savedX=ally.x,savedY=ally.y;ally.x=6;ally.y=6;
+    record("popup keeps the coordinate snapshot captured at HP change",sameActorEvents[0].x===savedX&&sameActorEvents[0].y===savedY);
+
+    const oldDisplayEvents=v123HpPopupEvents;
+    v123HpPopupEvents=[
+      {type:"damage",amount:15,x:3,y:3,floor:state.floor,dungeonId:state.dungeonId,targetKey:"draw-damage",stackIndex:0,startedAt:1000,durationMs:V123_HP_POPUP_DURATION_MS},
+      {type:"heal",amount:10,x:4,y:3,floor:state.floor,dungeonId:state.dungeonId,targetKey:"draw-heal",stackIndex:0,startedAt:1000,durationMs:V123_HP_POPUP_DURATION_MS}
+    ];
+    window.__v123HpPopupDrawProbe=[];window.__v123HpPopupDrawProbeEnabled=true;
+    v123DrawHpPopups(1100);
+    const drawState=window.__v123HpPopupDrawProbe||null;
+    record("canvas draws red damage and green plus-prefixed healing labels",
+      !!drawState&&drawState.some(v=>v.text==="15"&&v.color==="#FF5555")&&drawState.some(v=>v.text==="＋10"&&v.color==="#43D17A"));
+    window.__v123HpPopupDrawProbeEnabled=false;delete window.__v123HpPopupDrawProbe;
+    v123HpPopupEvents=oldDisplayEvents;
+
+    const capStart=v123HpPopupEvents.length;
+    for(let i=0;i<V123_HP_POPUP_MAX_EVENTS+8;i++)v123QueueHpPopup(ally,"damage",1,false);
+    record("popup queue is bounded to prevent memory growth",v123HpPopupEvents.length<=V123_HP_POPUP_MAX_EVENTS);
+    v123HpPopupEvents.length=capStart;
+
+    const villageEvents=v123HpPopupEvents.length;state.scene="village";ally.hp=ally.hp+1;
+    record("HP changes outside the dungeon do not create dungeon popups",v123HpPopupEvents.length===villageEvents);
+    state.scene="dungeon";
+  }catch(error){record("HP popup diagnostic exception",false,error?.stack||error?.message||String(error));}
+  finally{
+    state.scene=saved.scene;state.floor=saved.floor;state.dungeonId=saved.dungeonId;state.tiles=saved.tiles;state.player=saved.player;
+    state.status=saved.status;state.monsters=saved.monsters;state.companions=saved.companions;gameStarted=saved.gameStarted;
+    v123HpPopupEvents=saved.events;
+    v123StopHpPopupFrame();v123HpPopupCtx.clearRect(0,0,canvasLogicalSize,canvasLogicalSize);
+    if(v123HpPopupEvents.length)v123ScheduleHpPopupFrame();
+  }
+  return {total:checks.length,passed:checks.filter(check=>check.pass).length,failed:checks.filter(check=>!check.pass),checks};
+};
 
 refreshTitleScreenSaveState();
 /* Attempt audible autoplay immediately on every initial title-screen load.

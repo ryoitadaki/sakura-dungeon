@@ -1,6 +1,6 @@
-# 少女サクラと不思議のダンジョン v0.122.0
+# 少女サクラと不思議のダンジョン v0.123.0
 
-この版は、ゲーム本体HTMLとBGMファイルを分離したGitHub／GitHub Pages向け構成です。
+この版はv0.122.0を基準に、既存ゲームシステムと外部BGM構成を維持し、HPダメージ・回復ポップアップを追加したGitHub／GitHub Pages向け構成です。
 
 ## フォルダ構成
 
@@ -11,59 +11,56 @@ sakura-dungeon/
 ├── audio_assets_manifest.json
 └── assets/
     └── audio/
-        ├── sakura-theme.ogg
-        ├── sakura-theme.mp3
-        ├── novis-forest.ogg
-        ├── novis-forest.mp3
-        ├── mysterious-dungeon.ogg
-        ├── mysterious-dungeon.mp3
-        ├── underwater-sewer.ogg
-        ├── underwater-sewer.mp3
-        ├── misty-valley.ogg
-        └── misty-valley.mp3
+        ├── sakura-theme.ogg / .mp3
+        ├── novis-forest.ogg / .mp3
+        ├── mysterious-dungeon.ogg / .mp3
+        ├── underwater-sewer.ogg / .mp3
+        └── misty-valley.ogg / .mp3
 ```
 
-**重要：** `assets/audio/` のフォルダ名と相対パスを維持してください。`index.html` だけではBGMは再生できません。ゲーム本体とこの音源フォルダを同じリポジトリに登録してください。
+**重要：** `assets/audio/` のフォルダ名・相対パスを維持してください。`index.html` だけではBGMは再生されません。HTMLと音源フォルダを同じリポジトリに登録してください。
+
+## v0.123.0の追加機能：HP数値ポップアップ
+
+- HPが減少したキャラクターの頭上に赤色（`#FF5555`）でダメージ量を表示します。
+- HPが回復したキャラクターの頭上に緑色（`#43D17A`）で「＋回復量」を表示します。
+- サクラ・敵モンスター・仲間モンスターに共通適用します。
+- 回復量は最大HPを適用した後の実増加量です。HP上限到達中など、実際に増加しない場合は表示しません。
+- 主要ダメージ経路では防御・耐性などを適用した最終ダメージを渡し、致死時のオーバーキル分も表示します。
+- 約1.12秒表示し、上方向への移動とフェードアウトを行います。
+- HP変更時のワールド座標を記録するため、対象の移動・撃破・配列からの除去後も表示が継続します。
+- 複数キャラクター・連続イベントは個別のイベントとして描画し、同一キャラクターの連続表示にはオフセットを付けます。
+- 表示イベントは一時データで、セーブデータへ保存しません。イベントキューは最大96件です。
+- 既存のテキストメッセージ、HP計算、ターン進行、セーブ形式は維持します。
 
 ## GitHub Pagesで公開する方法
 
 1. ZIPを展開します。
-2. 展開したフォルダ内の `index.html` と `assets/` フォルダを、GitHubリポジトリのルートにアップロードします。
-3. `README.md` と `audio_assets_manifest.json` も一緒に登録しておくと、構成と音源の管理が容易になります。
-4. GitHubリポジトリの **Settings → Pages** で、公開元ブランチと `/ (root)` を選んで保存します。
-5. 公開されたページを開き、タイトル画面と4つのダンジョンでBGMを確認します。
+2. 展開したフォルダ内の `index.html`、`README.md`、`audio_assets_manifest.json`、`assets/` をリポジトリのルートへ登録します。
+3. GitHubの **Settings → Pages** で公開元ブランチと `/(root)` を選びます。
+4. 公開ページでタイトル曲と各ダンジョンBGM、ダメージ・回復表示を確認します。
 
-リポジトリのサブパスで公開されても動くように、音源URLは `assets/audio/...` という相対パスにしています。
+音源URLは相対パスです。リポジトリのサブパスでも配信しやすい構成です。
 
 ## PCでローカル確認する方法
 
-HTMLを `file://` で直接開く方法では、ブラウザのセキュリティ制限により外部音源の `fetch` が拒否される場合があります。ローカルHTTPサーバーを使ってください。
-
-WindowsのPowerShellで、このフォルダに移動して次を実行します。
+`file://` で直接開く場合、ブラウザによって外部音源の取得が制限されます。ローカルHTTPサーバーを使用してください。
 
 ```powershell
 py -m http.server 8000
 ```
 
-その後、ブラウザで `http://localhost:8000/` を開きます。
+その後 `http://localhost:8000/` を開きます。
 
-## BGMの読み込み方式
+## 新しいダンジョンBGMの追加
 
-- OGG：対応環境でWeb Audio APIから取得・デコードし、既存のループ用クロスフェード処理を適用します。
-- MP3：OGGのデコードに失敗した場合、またはWeb Audioが利用できない環境でフォールバックします。
-- タイトル曲と、入ったダンジョンのBGMを必要になった時点で読み込みます。全ダンジョンの音源を起動時に一括取得しません。
-- 既存の音量設定を維持します。タイトル曲・従来ダンジョンは0.25、濃霧の渓谷は0.42です。
-- ブラウザの自動再生制限に対するユーザー操作後の再試行処理を維持しています。
+1. `assets/audio/` に同じ曲のOGGとMP3を配置します。
+2. `index.html` の `DUNGEON_THEME_OGG_URLS` と `DUNGEON_THEME_MP3_URLS` に同一 `musicId` で相対パスを登録します。
+3. `DUNGEON_CONFIGS` の `musicId` と一致させます。
+4. 音源マニフェストを更新し、OGG取得・デコード・MP3フォールバック・ループを確認します。
 
-## 新しいダンジョンBGMを追加するとき
-
-1. `assets/audio/` に、同じ曲の `.ogg` と `.mp3` を配置します。
-2. `index.html` の `DUNGEON_THEME_OGG_URLS` と `DUNGEON_THEME_MP3_URLS` に、同じダンジョンIDで相対パスを追加します。
-3. `DUNGEON_CONFIGS` の `musicId` がそのIDを指すことを確認します。
-4. BGMの取得・デコード・MP3フォールバック・ループを確認します。
-
-**音源をBase64に変換してHTMLへ埋め込まないでください。** 以後も外部ファイルとして管理することで、HTML本体の容量がBGM追加に伴って膨らむことを防げます。
+音源をBase64へ変換してHTMLへ埋め込まないでください。
 
 ## セーブデータ
 
-`SAVE_FORMAT_VERSION = 1` を維持しています。今回の変更はBGMの配布・読み込み方式のみで、セーブデータ形式は変更していません。
+`SAVE_FORMAT_VERSION = 1` を維持しています。今回の変更は表示演出の追加のみで、セーブ形式は変更していません。
