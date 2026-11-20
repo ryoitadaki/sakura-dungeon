@@ -1,66 +1,106 @@
 {
-  "version": "v0.123.0",
+  "version": "v0.124.0",
   "asset_base_path": "assets/audio/",
   "assets": [
     {
       "file": "misty-valley.mp3",
       "bytes": 3841923,
-      "sha256": "544a4b5cb5d795fc677663f599397bb9598e037d3ed5fb21e0992588174bcc5c"
+      "sha256": "544a4b5cb5d795fc677663f599397bb9598e037d3ed5fb21e0992588174bcc5c",
+      "duration_seconds": 120.033,
+      "format": "mp3"
     },
     {
       "file": "misty-valley.ogg",
       "bytes": 2665648,
-      "sha256": "6e694733fdb89f9bcfd887cfbd6dba8f6c835a59f9e4837db6ff24879a42824b"
+      "sha256": "6e694733fdb89f9bcfd887cfbd6dba8f6c835a59f9e4837db6ff24879a42824b",
+      "duration_seconds": 120.0,
+      "format": "ogg"
     },
     {
       "file": "mysterious-dungeon.mp3",
       "bytes": 960722,
-      "sha256": "ec4c742fd7ebb74c6f57592a6ffd2c99699edda0a5699a19936f9dcbf31619c3"
+      "sha256": "ec4c742fd7ebb74c6f57592a6ffd2c99699edda0a5699a19936f9dcbf31619c3",
+      "duration_seconds": 120.059,
+      "format": "mp3"
     },
     {
       "file": "mysterious-dungeon.ogg",
       "bytes": 560743,
-      "sha256": "f7dc3017100adffb1f4d8ec7507e593373d85ebc4bcf4389b57b44ba4987dc8a"
+      "sha256": "f7dc3017100adffb1f4d8ec7507e593373d85ebc4bcf4389b57b44ba4987dc8a",
+      "duration_seconds": 120.0,
+      "format": "ogg"
     },
     {
       "file": "novis-forest.mp3",
       "bytes": 960722,
-      "sha256": "96992a0e892f10faeac03c837b53bc5489530ac91dec1063b5b882bc189b00f2"
+      "sha256": "96992a0e892f10faeac03c837b53bc5489530ac91dec1063b5b882bc189b00f2",
+      "duration_seconds": 120.059,
+      "format": "mp3"
     },
     {
       "file": "novis-forest.ogg",
       "bytes": 532703,
-      "sha256": "ce872052846551ef09d4a13eab2d0027322fd60d4644c8b983cc051061af7593"
+      "sha256": "ce872052846551ef09d4a13eab2d0027322fd60d4644c8b983cc051061af7593",
+      "duration_seconds": 120.0,
+      "format": "ogg"
     },
     {
       "file": "sakura-theme.mp3",
       "bytes": 1919267,
-      "sha256": "3a5687be6f8538a996a57fe80663b4fc9ab95b3fe775804bbc23ce7ff4b75e1a"
+      "sha256": "3a5687be6f8538a996a57fe80663b4fc9ab95b3fe775804bbc23ce7ff4b75e1a",
+      "duration_seconds": 119.928,
+      "format": "mp3"
     },
     {
       "file": "sakura-theme.ogg",
       "bytes": 2375898,
-      "sha256": "ee2da372699e0e05dd73ce319d6771bda31ccab59cbde6bd69fb0e3354796e06"
+      "sha256": "ee2da372699e0e05dd73ce319d6771bda31ccab59cbde6bd69fb0e3354796e06",
+      "duration_seconds": 119.88,
+      "format": "ogg"
     },
     {
       "file": "underwater-sewer.mp3",
       "bytes": 1920983,
-      "sha256": "cfd443d4bcf03fc3e3735288e7454af64a80eeac4c1e7f76f3dc0de005e17f2d"
+      "sha256": "cfd443d4bcf03fc3e3735288e7454af64a80eeac4c1e7f76f3dc0de005e17f2d",
+      "duration_seconds": 120.033,
+      "format": "mp3"
     },
     {
       "file": "underwater-sewer.ogg",
       "bytes": 1210068,
-      "sha256": "1168741e40e4b3ec245cb44b912b120c93fc5320a2a2f086112b27c6e365874e"
+      "sha256": "1168741e40e4b3ec245cb44b912b120c93fc5320a2a2f086112b27c6e365874e",
+      "duration_seconds": 120.0,
+      "format": "ogg"
     }
   ],
   "total_audio_bytes": 16948677,
-  "html_bytes": 2427355,
-  "html_sha256": "13ec7692a235c2684ab709fbeef66b2e9cbc840f6688344146a80a49db1f59f7",
+  "html_bytes": 2442457,
+  "html_sha256": "ecc332d979ddf080e00bf10ae645ce8055dddd41c18e22d79ec7e55de2031e03",
   "save_format_version": 1,
-  "feature": "universal damage/healing number popups",
-  "popup_unit_tests": {
-    "total": 13,
-    "passed": 13,
+  "feature": "unified green crystal rendering and active-companion-based natural spawn cadence",
+  "v124_focused_unit_tests": {
+    "total": 15,
+    "passed": 15,
     "failed": 0
+  },
+  "existing_suite_inline_browser_checks": {
+    "v117": {
+      "total": 7,
+      "passed": 7
+    },
+    "v121": {
+      "total": 10,
+      "passed": 10
+    },
+    "v121_detailed": {
+      "total": 14,
+      "passed": 14
+    },
+    "v123_hp_popup": {
+      "total": 13,
+      "passed": 12,
+      "failed": 1,
+      "same_failure_on_v123_baseline": true
+    }
   }
 }
