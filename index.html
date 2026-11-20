@@ -1000,7 +1000,7 @@ html.short-viewport #title-screen p{margin-bottom:20px;}
 
 <div id="title-screen">
   <h1>少女サクラと不思議のダンジョン</h1>
-  <p>SAKURA'S MYSTERIOUS DUNGEON &nbsp;v0.123.0</p>
+  <p>SAKURA'S MYSTERIOUS DUNGEON &nbsp;v0.124.0</p>
   <button type="button" id="title-bgm-btn" aria-pressed="false">♪ サクラのテーマを再生</button>
   <p id="save-status" class="save-status" role="status" aria-live="polite">セーブデータを確認しています。</p>
   <button type="button" id="start-btn">▶ 村へ進む</button>
@@ -1118,7 +1118,7 @@ html.short-viewport #title-screen p{margin-bottom:20px;}
 --------------------------------------------------------------------- */
 let DEBUG_MODE = false;
 
-const VERSION = "v0.123.0";
+const VERSION = "v0.124.0";
 /* v0.108.0 — Apply the requested strength rebalance to the eight Plant-family
    Koror / Petit archetypes in the canonical 221-species archive. Only the
    strength column changes; HP, defense, evasion, luck, recruitment, floor
@@ -4215,7 +4215,7 @@ function getCurrentDungeonMonsterSpawnRatePercent(){
 
 /* Empty natural population recovery rule (CHANGE-041 / v0.42.0):
    When no living floor-initial or timed-natural monsters remain on the current
-   floor, the next scheduled 15-turn natural-spawn check is guaranteed (100%).
+   floor, the next party-interval natural-spawn check is guaranteed (100%).
    Once at least one member of that natural population is alive, the dungeon's
    configured probability applies again. Summoned / trap / monster-house
    actors remain outside this population count, just as they remain outside
@@ -5779,7 +5779,7 @@ const state = {
   scene:"village",             // village or dungeon; persisted separately from the current floor
   dungeonId:DEFAULT_DUNGEON_ID,
   clearedDungeonIds:[],         // campaign progression: each dungeon ID is recorded once on clear
-  monsterSpawnTurnProgress:0, // player actions since the last 15-turn natural-spawn check (0-14)
+  monsterSpawnTurnProgress:0, // elapsed player actions since the last natural-spawn check (0-14; dynamic interval is 10-15)
   lastMonsterSpawnInfo:null, // debug-only result of the most recent natural-spawn check
   tiles: null,        // 2D array [y][x] -> TILE
   rooms: [],         // [{cx,cy,x,y,w,h,centerX,centerY}]
@@ -7317,10 +7317,9 @@ function attemptNaturalMonsterSpawn(randomFn=Math.random){
     monster:spawned[0]||null,monsters:spawned};
 }
 
-/* Called exactly once from consumePlayerTurn() for every turn-consuming
-   player action. The 15-action cadence belongs to the current dungeon run,
-   so it continues across floor transitions and debug floor regeneration.
-   It is reset only when a new run starts or a different dungeon is selected. */
+/* Base 15-turn scheduler retained beneath the final version-specific wrapper.
+   v0.124.0 replaces only its cadence gate with the living-party interval; the
+   progress field still persists across floors and resets only with a new run. */
 function advanceMonsterSpawnTurnProgress(randomFn=Math.random){
   state.monsterSpawnTurnProgress+=1;
   if(state.monsterSpawnTurnProgress<NATURAL_MONSTER_SPAWN_INTERVAL_TURNS){
@@ -17913,7 +17912,7 @@ function runDungeonTests(){
   // TEST-626: all four BGM paths use the same output gain; shop/thief samples
   // are no longer attenuated by the old 0.23 PCM multiplier.
   {
-    const html=VERSION==="v0.123.0"&&V112_BGM_MASTER_GAIN===0.25&&Object.prototype.hasOwnProperty.call(DUNGEON_THEME_MP3_URLS,MISTY_VALLEY_DUNGEON_ID);
+    const html=VERSION==="v0.124.0"&&V112_BGM_MASTER_GAIN===0.25&&Object.prototype.hasOwnProperty.call(DUNGEON_THEME_MP3_URLS,MISTY_VALLEY_DUNGEON_ID);
     const special=v115LegacyBuildSpecialThemeBuffer.toString().includes("*.82")&&
       v115LegacyStartSpecialTheme.toString().includes("gain.gain.value=0.25")&&
       v110BuildSpecialThemeBuffer.toString().includes("v115PrepareSeamlessLoopBuffer");
@@ -28739,7 +28738,7 @@ function updateDebugPanel(){
   html+=`ACTOR MOTION: ${reducedMotionQuery.matches ? "reduced-motion (static)" : playerMotionMode} &nbsp; FPS: ${SCENE_ANIMATION_FPS}<br>`;
   html+=`COMBAT MOTION: Sakura walk ${ACTOR_MOTION_PROFILES.player.walkCycleMs}ms / attack ${ACTOR_MOTION_PROFILES.player.attackDurationMs}ms / item ${ACTOR_MOTION_PROFILES.player.itemUseDurationMs}ms / hit ${ACTOR_MOTION_PROFILES.player.hitDurationMs}ms &nbsp; ENEMIES: ${state.monsters.length}<br>`;
   const spawnRateInfo=getNaturalMonsterSpawnRateInfo();
-  html+=`MONSTER SPAWN: configured ${spawnRateInfo.configuredRatePercent}% / harp x${spawnRateInfo.spawnRateMultiplier} (${spawnRateInfo.silverHarpStacks} stacks) / effective ${spawnRateInfo.effectiveRatePercent}%${spawnRateInfo.guaranteedByEmptyPopulation?" (empty natural population: guaranteed)":""} / ${state.monsterSpawnTurnProgress}/${NATURAL_MONSTER_SPAWN_INTERVAL_TURNS} turns / natural ${spawnRateInfo.naturalPopulation}/${MAX_NATURAL_MONSTERS_PER_FLOOR} / total ${state.monsters.length}<br>`;
+  html+=`MONSTER SPAWN: configured ${spawnRateInfo.configuredRatePercent}% / harp x${spawnRateInfo.spawnRateMultiplier} (${spawnRateInfo.silverHarpStacks} stacks) / effective ${spawnRateInfo.effectiveRatePercent}%${spawnRateInfo.guaranteedByEmptyPopulation?" (empty natural population: guaranteed)":""} / ${state.monsterSpawnTurnProgress}/${getNaturalMonsterSpawnIntervalTurns()} turns / natural ${spawnRateInfo.naturalPopulation}/${MAX_NATURAL_MONSTERS_PER_FLOOR} / total ${state.monsters.length}<br>`;
   const itemPool=getDungeonAvailableItemPool();
   html+=`TRAPS: ${TRAP_CATALOG.length} types / auto-spawn ${TRAP_AUTO_SPAWN_ENABLED?"ON":"OFF"} / floor target ${state.lastGenInfo?.trapTargetCount??"-"} / placed ${state.floorTraps.length} / discovered ${(state.floorTraps||[]).filter(t=>t.discovered).length} / candidates ${state.lastGenInfo?.trapCandidateCount??"-"}<br>`;
   html+=`ITEMS: inventory ${state.inventory.length}/${MAX_INVENTORY_ITEMS} / weapon ${getEquippedWeaponDefinition()?.name||"none"} / floor items ${state.floorItems.length} / floor gold ${state.floorGold.length} / arrows ${ARROW_ITEM_CATALOG.length} / boomerangs ${BOOMERANG_ITEM_CATALOG.length} / scrolls ${SCROLL_ITEM_CATALOG.length} / pots ${POT_ITEM_CATALOG.length} / warehouse ${state.warehouseItems.length} / drop ${MONSTER_ANY_DROP_RATE_PERCENT}% (gold ${MONSTER_GOLD_DROP_RATE_PERCENT}%, item ${MONSTER_ITEM_DROP_RATE_PERCENT}%) / eligible ${itemPool.map(item=>`${item.name}:${item.spawnWeight}`).join(", ")} / total weight ${getItemSpawnWeightTotal(itemPool)}<br>`;
@@ -34346,6 +34345,274 @@ window.runSakuraV123HpPopupUnitChecks=function(){
   }
   return {total:checks.length,passed:checks.filter(check=>check.pass).length,failed:checks.filter(check=>!check.pass),checks};
 };
+
+/* ------------------------------------------------------------------
+   v0.124.0 additions
+   1) Route crystal tiles through one shared green-crystal rendering layer.
+   2) Recalculate natural-spawn cadence from living active companions while
+      preserving elapsed progress since the previous spawn check.
+------------------------------------------------------------------ */
+
+/* Shared green crystal artwork. Dungeon floor renderers draw their own base
+   floor first; this helper then paints the same crystal used by the sewer. */
+function v124DrawUnifiedGreenCrystal(ctx,sx,sy,tileSize,mapX,mapY){
+  const x=sx*tileSize,y=sy*tileSize;
+  const seed=tileHash(mapX*67+5,mapY*41+13);
+  const palette=getSewerVisualPalette();
+  ctx.fillStyle="rgba(88,255,169,.15)";
+  ctx.beginPath();
+  ctx.arc(x+tileSize*.5,y+tileSize*.49,tileSize*(.36+seed*.04),0,Math.PI*2);
+  ctx.fill();
+  const cx=x+tileSize*.5,cy=y+tileSize*.52;
+  ctx.beginPath();
+  ctx.moveTo(cx,cy-tileSize*.39);
+  ctx.lineTo(cx+tileSize*.19,cy-tileSize*.06);
+  ctx.lineTo(cx+tileSize*.12,cy+tileSize*.31);
+  ctx.lineTo(cx,cy+tileSize*.39);
+  ctx.lineTo(cx-tileSize*.16,cy+tileSize*.16);
+  ctx.lineTo(cx-tileSize*.18,cy-tileSize*.13);
+  ctx.closePath();
+  const gem=ctx.createLinearGradient(cx-tileSize*.2,cy,cx+tileSize*.2,cy);
+  gem.addColorStop(0,"#087a57");
+  gem.addColorStop(.35,palette.glow);
+  gem.addColorStop(.68,"#18bd85");
+  gem.addColorStop(1,"#07563f");
+  ctx.fillStyle=gem;
+  ctx.fill();
+  ctx.strokeStyle="#b6ffe2";
+  ctx.lineWidth=Math.max(1,tileSize*.018);
+  ctx.stroke();
+  ctx.fillStyle="rgba(255,255,255,.72)";
+  ctx.beginPath();
+  ctx.moveTo(cx,cy-tileSize*.35);
+  ctx.lineTo(cx+tileSize*.07,cy-tileSize*.10);
+  ctx.lineTo(cx-tileSize*.015,cy+tileSize*.05);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle="#203d31";
+  ctx.fillRect(cx-tileSize*.20,cy+tileSize*.36,tileSize*.40,tileSize*.055);
+}
+
+/* All crystal cells use the tile's native dungeon floor underneath the same
+   overlay. The underwater sewer retains its established canonical renderer;
+   Misty Valley's custom fog renderer no longer swallows the crystal sprite.
+   New dungeons using the common floor renderer inherit this behaviour too. */
+const v124LegacyDrawFloorTile=drawFloorTile;
+let v124CrystalDrawProbe=null;
+drawFloorTile=function(ctx,sx,sy,tileSize,mapX,mapY,tileType){
+  if(tileType!==TILE.CRYSTAL){
+    return v124LegacyDrawFloorTile(ctx,sx,sy,tileSize,mapX,mapY,tileType);
+  }
+  let result;
+  if(state.dungeonId===UNDERWATER_SEWER_DUNGEON_ID){
+    result=v124LegacyDrawFloorTile(ctx,sx,sy,tileSize,mapX,mapY,TILE.CRYSTAL);
+  }else{
+    /* Crystal placement replaces an ordinary room tile. Draw that room with
+       the current dungeon's palette, then place the common green crystal on it. */
+    result=v124LegacyDrawFloorTile(ctx,sx,sy,tileSize,mapX,mapY,TILE.ROOM);
+    v124DrawUnifiedGreenCrystal(ctx,sx,sy,tileSize,mapX,mapY);
+  }
+  if(v124CrystalDrawProbe){
+    v124CrystalDrawProbe.push({dungeonId:state.dungeonId,x:mapX,y:mapY,sx,sy,tileType,drawn:true});
+  }
+  return result;
+};
+
+/* The interval is derived from the current active dungeon party every time a
+   player action advances the world. Only living actors in state.companions
+   count; captured pot contents and village storage are outside this array. */
+const V124_NATURAL_SPAWN_INTERVAL_BY_COMPANION_COUNT=Object.freeze([15,13,12,11,10]);
+function getLivingDungeonCompanionCount(){
+  if(state.scene!=="dungeon"||!Array.isArray(state.companions))return 0;
+  return Math.min(MAX_ACTIVE_COMPANIONS,state.companions.reduce((count,actor)=>
+    count+(actor&&Number.isFinite(actor.hp)&&actor.hp>0?1:0),0));
+}
+function getNaturalMonsterSpawnIntervalTurns(livingCompanionCount=getLivingDungeonCompanionCount()){
+  const count=Number.isFinite(livingCompanionCount)
+    ?Math.max(0,Math.min(MAX_ACTIVE_COMPANIONS,Math.floor(livingCompanionCount)))
+    :0;
+  return V124_NATURAL_SPAWN_INTERVAL_BY_COMPANION_COUNT[count];
+}
+
+/* Replace only the timing gate; the existing spawn chance, multi-spawn logic,
+   candidate rules, species weighting and natural-population cap are untouched.
+   Progress remains the elapsed turns since the previous check, even when the
+   party size changes. At most one natural-spawn check runs per player action. */
+advanceMonsterSpawnTurnProgress=function(randomFn=Math.random){
+  const livingCompanionCount=getLivingDungeonCompanionCount();
+  const intervalTurns=getNaturalMonsterSpawnIntervalTurns(livingCompanionCount);
+  const previousProgress=Number.isInteger(state.monsterSpawnTurnProgress)&&state.monsterSpawnTurnProgress>=0
+    ?state.monsterSpawnTurnProgress:0;
+  state.monsterSpawnTurnProgress=previousProgress+1;
+  let result;
+  if(state.monsterSpawnTurnProgress<intervalTurns){
+    result={due:false,spawned:false,progress:state.monsterSpawnTurnProgress,
+      intervalTurns,livingCompanionCount};
+  }else{
+    state.monsterSpawnTurnProgress=0;
+    const spawnResult=attemptNaturalMonsterSpawn(randomFn);
+    state.lastMonsterSpawnInfo={floor:state.floor,turnCount:state.turnCount,...spawnResult};
+    result={due:true,progress:0,...spawnResult,intervalTurns,livingCompanionCount};
+  }
+
+  /* Preserve the independent Gargoyle-thief spawn timer from v0.110.0. */
+  if(state.thiefActive){
+    state.thiefSpawnProgress=(Number.isInteger(state.thiefSpawnProgress)?state.thiefSpawnProgress:0)+1;
+    if(state.thiefSpawnProgress>=V110_GARGOYLE_THIEF_INTERVAL_TURNS){
+      state.thiefSpawnProgress=0;
+      const thiefSpawn=v110SpawnThiefGargoyle(randomFn);
+      state.lastThiefGargoyleSpawnInfo={floor:state.floor,turnCount:state.turnCount,...thiefSpawn};
+      if(thiefSpawn.spawned){
+        result.thiefGargoyleSpawned=true;
+        result.events=[...(result.events||[]),"ガーゴイルが新たに現れた！"];
+      }
+    }
+  }
+  return result;
+};
+
+/* v0.124.0 focused tests. They use deterministic stubs and restore every
+   touched game-state field; the live game and save data are not modified. */
+window.runSakuraV124CrystalAndSpawnUnitChecks=function(){
+  const checks=[];
+  const record=(name,pass,detail="")=>checks.push({name,pass:!!pass,detail:String(detail)});
+  const saved={
+    scene:state.scene,dungeonId:state.dungeonId,floor:state.floor,tiles:state.tiles,
+    player:state.player,companions:state.companions,companionStorage:state.companionStorage,
+    potInstancesById:state.potInstancesById,monsterSpawnTurnProgress:state.monsterSpawnTurnProgress,
+    lastMonsterSpawnInfo:state.lastMonsterSpawnInfo,turnCount:state.turnCount,
+    thiefActive:state.thiefActive,thiefSpawnProgress:state.thiefSpawnProgress,
+    lastThiefGargoyleSpawnInfo:state.lastThiefGargoyleSpawnInfo,
+    attemptNaturalMonsterSpawn,drawProbe:v124CrystalDrawProbe
+  };
+  try{
+    /* Crystal tile draws once through the shared visible crystal layer for
+       the sewer, Misty Valley and a future dungeon using the common renderer. */
+    const gradient={addColorStop(){}};
+    const mockContext=new Proxy({
+      createLinearGradient(){return gradient;},createRadialGradient(){return gradient;},
+      save(){},restore(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},
+      quadraticCurveTo(){},arc(){},ellipse(){},fill(){},stroke(){},fillRect(){},strokeRect(){},
+      setTransform(){},clearRect(){},measureText(){return {width:0};}
+    },{get(target,key){if(key in target)return target[key];return ()=>{};},set(target,key,value){target[key]=value;return true;}});
+    state.scene="dungeon";state.player={x:2,y:2,dir:"down"};
+    state.tiles=Array.from({length:MAP_H},()=>Array(MAP_W).fill(TILE.ROOM));
+    v124CrystalDrawProbe=[];
+    const crystalCases=[UNDERWATER_SEWER_DUNGEON_ID,MISTY_VALLEY_DUNGEON_ID,"future-common-renderer-dungeon"];
+    for(const dungeonId of crystalCases){
+      state.dungeonId=dungeonId;
+      drawFloorTile(mockContext,3,4,32,8,9,TILE.CRYSTAL);
+    }
+    const allCrystalTilesDrawn=v124CrystalDrawProbe.length===3&&
+      crystalCases.every(id=>v124CrystalDrawProbe.some(entry=>entry.dungeonId===id&&entry.x===8&&entry.y===9&&entry.drawn));
+    const noFalseCrystalDraw=v124CrystalDrawProbe.length===3;
+    record("crystals use the same visible draw path in sewer, Misty Valley and common future dungeons",allCrystalTilesDrawn,JSON.stringify(v124CrystalDrawProbe));
+    const beforeOrdinary=v124CrystalDrawProbe.length;
+    state.dungeonId=MISTY_VALLEY_DUNGEON_ID;
+    drawFloorTile(mockContext,3,4,32,8,9,TILE.ROOM);
+    record("ordinary room tiles do not receive crystal artwork",v124CrystalDrawProbe.length===beforeOrdinary&&noFalseCrystalDraw);
+
+    /* Interval mapping and living-only roster semantics. */
+    state.dungeonId=MISTY_VALLEY_DUNGEON_ID;
+    state.scene="dungeon";
+    const intervalExpected=[15,13,12,11,10];
+    const intervalMapping=intervalExpected.every((value,count)=>getNaturalMonsterSpawnIntervalTurns(count)===value);
+    record("exact spawn intervals for zero through four living companions",intervalMapping,intervalExpected.join(","));
+    const companion=(id,hp=20)=>({id,hp,maxHp:20,x:3,y:3});
+    state.companions=[companion("alive-1"),companion("dead",0),companion("alive-2"),companion("not-alive",-1)];
+    state.companionStorage=[companion("stored")] ;
+    state.potInstancesById={"molly-pot":[{contents:[],capturedMonsters:[companion("captured")]}]};
+    const livingCountOk=getLivingDungeonCompanionCount()===2&&getNaturalMonsterSpawnIntervalTurns()===12;
+    record("only living active companions count; stored or pot-captured companions do not",livingCountOk,
+      `living=${getLivingDungeonCompanionCount()}; interval=${getNaturalMonsterSpawnIntervalTurns()}`);
+    state.companions[1].hp=10;
+    const revivedCountOk=getLivingDungeonCompanionCount()===3&&getNaturalMonsterSpawnIntervalTurns()===11;
+    record("a companion restored to positive HP is counted immediately",revivedCountOk);
+    state.companions[1].hp=0;
+    const deathCountOk=getLivingDungeonCompanionCount()===2&&getNaturalMonsterSpawnIntervalTurns()===12;
+    record("a companion at zero HP is excluded immediately",deathCountOk);
+
+    /* Advance tests stub only the spawn attempt; configured rate resolution is
+       still the actual production function and is checked separately. */
+    let attempts=0;
+    attemptNaturalMonsterSpawn=function(){attempts++;return {spawned:false,spawnedCount:0,reason:"unit-test"};};
+    state.thiefActive=false;state.thiefSpawnProgress=0;
+    for(let count=0;count<=4;count++){
+      state.companions=Array.from({length:count},(_,i)=>companion(`cadence-${count}-${i}`));
+      state.monsterSpawnTurnProgress=0;attempts=0;
+      const interval=intervalExpected[count];let premature=false;let finalDue=null;
+      for(let turn=1;turn<=interval;turn++){
+        const tick=advanceMonsterSpawnTurnProgress(()=>.99);
+        if(turn<interval&&tick.due)premature=true;
+        if(turn===interval)finalDue=tick;
+      }
+      record(`${count} living companions trigger exactly once every ${interval} turns`,
+        !premature&&finalDue?.due===true&&attempts===1&&state.monsterSpawnTurnProgress===0,
+        `interval=${interval}; attempts=${attempts}; due=${finalDue?.due}`);
+    }
+
+    /* Party size changes must not reset progress. 4 -> 3 companions: 8 turns
+       elapsed remains 8; the new 11-turn interval fires after exactly 3 more. */
+    state.companions=Array.from({length:4},(_,i)=>companion(`drop-${i}`));
+    state.monsterSpawnTurnProgress=8;attempts=0;
+    const beforeChangeProgress=state.monsterSpawnTurnProgress;
+    state.companions[3].hp=0;
+    const changedInterval=getNaturalMonsterSpawnIntervalTurns();
+    let dueAfterThree=false;
+    for(let i=0;i<3;i++)dueAfterThree=advanceMonsterSpawnTurnProgress(()=>.99).due;
+    record("4-to-3 companion change retains eight elapsed turns and checks after three more", 
+      beforeChangeProgress===8&&changedInterval===11&&dueAfterThree&&attempts===1&&state.monsterSpawnTurnProgress===0,
+      `preserved=${beforeChangeProgress}; interval=${changedInterval}; due=${dueAfterThree}; attempts=${attempts}`);
+
+    /* 0 -> 1 companion change: 5 turns remain elapsed; new interval 13 fires
+       after 8 more actions without a timer reset. */
+    state.companions=[];state.monsterSpawnTurnProgress=5;attempts=0;
+    state.companions=[companion("withdrawn-from-pot")];
+    const oneCompanionInterval=getNaturalMonsterSpawnIntervalTurns();let dueAfterEight=false;
+    for(let i=0;i<8;i++)dueAfterEight=advanceMonsterSpawnTurnProgress(()=>.99).due;
+    record("0-to-1 companion change retains five elapsed turns and checks after eight more",
+      oneCompanionInterval===13&&dueAfterEight&&attempts===1&&state.monsterSpawnTurnProgress===0,
+      `interval=${oneCompanionInterval}; due=${dueAfterEight}; attempts=${attempts}`);
+
+    /* If the interval becomes shorter than elapsed progress, only the next
+       advancement performs one check, then progress starts again at zero. */
+    state.companions=[];state.monsterSpawnTurnProgress=12;attempts=0;
+    state.companions=Array.from({length:4},(_,i)=>companion(`shorter-${i}`));
+    const immediateDue=advanceMonsterSpawnTurnProgress(()=>.99);
+    const nextTick=advanceMonsterSpawnTurnProgress(()=>.99);
+    record("already-due interval waits for the next action and never double-checks",immediateDue.due&&attempts===1&&
+      state.monsterSpawnTurnProgress===1&&!nextTick.due,`attempts=${attempts}; afterDueProgress=${state.monsterSpawnTurnProgress}`);
+
+    /* The dungeon/floor probability itself is independent of companion count. */
+    state.dungeonId=MISTY_VALLEY_DUNGEON_ID;state.floor=12;
+    const rates=[];
+    for(let count=0;count<=4;count++){
+      state.companions=Array.from({length:count},(_,i)=>companion(`rate-${count}-${i}`));
+      rates.push(getCurrentDungeonMonsterSpawnRatePercent());
+    }
+    record("natural spawn probability remains unchanged when companion count changes",
+      rates.every(value=>value===42),rates.join(","));
+  }catch(error){
+    record("v0.124 focused diagnostic completes without exception",false,error?.stack||error?.message||String(error));
+  }finally{
+    state.scene=saved.scene;state.dungeonId=saved.dungeonId;state.floor=saved.floor;state.tiles=saved.tiles;
+    state.player=saved.player;state.companions=saved.companions;state.companionStorage=saved.companionStorage;
+    state.potInstancesById=saved.potInstancesById;state.monsterSpawnTurnProgress=saved.monsterSpawnTurnProgress;
+    state.lastMonsterSpawnInfo=saved.lastMonsterSpawnInfo;state.turnCount=saved.turnCount;
+    state.thiefActive=saved.thiefActive;state.thiefSpawnProgress=saved.thiefSpawnProgress;
+    state.lastThiefGargoyleSpawnInfo=saved.lastThiefGargoyleSpawnInfo;
+    attemptNaturalMonsterSpawn=saved.attemptNaturalMonsterSpawn;v124CrystalDrawProbe=saved.drawProbe;
+  }
+  return {total:checks.length,passed:checks.filter(check=>check.pass).length,
+    failed:checks.filter(check=>!check.pass),checks};
+};
+
+window.getSakuraV124SpawnIntervalInfo=function(){
+  const livingCompanionCount=getLivingDungeonCompanionCount();
+  return {livingCompanionCount,intervalTurns:getNaturalMonsterSpawnIntervalTurns(livingCompanionCount),
+    elapsedTurns:state.monsterSpawnTurnProgress};
+};
+
 
 refreshTitleScreenSaveState();
 /* Attempt audible autoplay immediately on every initial title-screen load.
